@@ -20,9 +20,16 @@ using Gma.System.MouseKeyHook;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
+using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace Kollector
 {
+    public enum Mode
+    {
+        Rectangle,
+        Lasso
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -30,8 +37,14 @@ namespace Kollector
     {
         private IKeyboardMouseEvents _globalHook;
 
-        //[System.Runtime.InteropServices.DllImport("gdi32.dll")]
-        //public static extern bool DeleteObject(IntPtr hObject);
+        private Mode _mode = Mode.Rectangle;
+        private bool _drawing = false;
+        private bool _start = false;
+        private double _xRatio = 0.0;
+        private double _yRatio = 0.0;
+        private Path _lastPath = new Path();
+        private PathFigure _lastFigure = new PathFigure();
+        private Point _startPoint;
 
         public MainWindow()
         {
@@ -56,6 +69,7 @@ namespace Kollector
         {
             MainCanvas.Children.Clear();
             _drawing = false;
+            _start = false;
             BackgroundBrush.Opacity = 0;
         }
 
@@ -63,32 +77,88 @@ namespace Kollector
         {
             if (_drawing)
             {
-                _lastFigure.Segments.Add(new LineSegment { Point = new Point(e.X * _xRatio, e.Y * _yRatio) });
+                var point = new Point(e.X*_xRatio, e.Y*_yRatio);
+                if (_mode == Mode.Lasso)
+                {
+                    _lastFigure.Segments.RemoveAt(_lastFigure.Segments.Count - 1);
+                    _lastFigure.Segments.Add(new LineSegment {Point = point });
+                    _lastFigure.Segments.Add(new LineSegment {Point = _startPoint });
+                }
+                else if(_mode == Mode.Rectangle)
+                {
+                    var rectangle = (System.Windows.Shapes.Rectangle)MainCanvas.Children[0];
+                    var width = Math.Abs(point.X - _startPoint.X);
+                    var height = Math.Abs(point.Y - _startPoint.Y);
+                    rectangle.Width = width;
+                    rectangle.Height = height;
+                }
             }
         }
 
-        private bool _drawing = false;
-        private double _xRatio = 0.0;
-        private double _yRatio = 0.0;
-        private Path _lastPath = new Path();
-        private PathFigure _lastFigure = new PathFigure();
         private void _globalHook_GlobalHookOnMouseDown(object sender, MouseEventArgs e)
         {
-            if (_drawing)
+            if (_start)
             {
                 var point = new Point(e.X * _xRatio, e.Y * _yRatio);
-                _lastPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 10 };
-                _lastFigure = new PathFigure { StartPoint = point };
-                _lastPath.Data = new PathGeometry(new List<PathFigure> { _lastFigure });
-                _lastFigure.Segments.Add(new LineSegment { Point = point });
-                MainCanvas.Children.Add(_lastPath);
+                _startPoint = point;
+                _drawing = true;
 
-                //var circle = new Ellipse { Width = 20, Height = 20, Fill = new SolidColorBrush(Colors.Red) };
-                //Canvas.SetLeft(circle, point.X);
-                //Canvas.SetTop(circle, point.Y);
-                //MainCanvas.Children.Add(circle);
+                if (_mode == Mode.Lasso)
+                {
+                    _lastPath = new Path {Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5};
+                    _lastFigure = new PathFigure {StartPoint = point};
+                    _lastPath.Data = new PathGeometry(new List<PathFigure> {_lastFigure});
+                    _lastFigure.Segments.Add(new LineSegment {Point = point});
+                    MainCanvas.Children.Add(_lastPath);
+                }
+                else if(_mode == Mode.Rectangle)
+                {
+
+                    var rectangle = new System.Windows.Shapes.Rectangle
+                    {
+                        Stroke = new SolidColorBrush(Colors.Red),
+                        StrokeThickness = 5,
+                        //Fill = new SolidColorBrush(Colors.Black),
+                        Width =0,
+                        Height = 0
+                    };
+                    Canvas.SetLeft(rectangle, _startPoint.X);
+                    Canvas.SetTop(rectangle, _startPoint.Y);
+                    MainCanvas.Children.Add(rectangle);
+                }
+
             }
         }
+
+        private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == '1')
+            {
+                _start = true;
+                BackgroundBrush.Opacity = 0.2;
+                _mode = Mode.Rectangle;
+            }
+            else if (e.KeyChar == '2')
+            {
+                _start = true;
+                BackgroundBrush.Opacity = 0.2;
+                _mode = Mode.Lasso;
+            }
+        }
+
+        private void MainWindow_OnDeactivated(object sender, EventArgs e)
+        {
+            Topmost = true;
+        }
+
+        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            Setup();
+        }
+
+        #region Screenshoots
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr hObject);
 
         private void FillWithScreenshot()
         {
@@ -96,7 +166,7 @@ namespace Kollector
 
             using (var g = Graphics.FromImage(screenshotBmp))
             {
-                g.CopyFromScreen(0,0,0,0, screenshotBmp.Size);
+                g.CopyFromScreen(0, 0, 0, 0, screenshotBmp.Size);
             }
 
             IntPtr handle = IntPtr.Zero;
@@ -115,24 +185,6 @@ namespace Kollector
                 //DeleteObject(handle);
             }
         }
-
-        private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (e.KeyChar == '`')
-            {
-                _drawing = true;
-                BackgroundBrush.Opacity = 0.2;
-            }
-        }
-
-        private void MainWindow_OnDeactivated(object sender, EventArgs e)
-        {
-            Topmost = true;
-        }
-
-        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
-        {
-            Setup();
-        }
+        #endregion
     }
 }
