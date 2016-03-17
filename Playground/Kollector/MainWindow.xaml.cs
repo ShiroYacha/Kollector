@@ -33,7 +33,7 @@ namespace Kollector
     /// </summary>
     public partial class MainWindow : Window
     {
-        private const double SELECTION_BACKGROUND_OPACITY = 0.8;
+        private const double SELECTION_BACKGROUND_OPACITY = 0.7;
         private const double POST_SELECTION_BACKGROUND_OPACITY = 0.8;
         private IKeyboardMouseEvents _globalHook;
 
