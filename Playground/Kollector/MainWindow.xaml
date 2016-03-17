@@ -16,7 +16,7 @@
         <SolidColorBrush x:Name="BackgroundBrush" Color="White"  Opacity="0.01"/>
     </Window.Background>
     <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-        <Canvas Name="MainCanvas">
+        <Canvas Name="MainCanvas" MouseDown="MainCanvas_OnMouseDown">
             <Canvas.Background>
                 <x:Null/>
             </Canvas.Background>

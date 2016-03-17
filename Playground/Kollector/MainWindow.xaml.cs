@@ -12,12 +12,15 @@ using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using Brushes = System.Windows.Media.Brushes;
+using Image = System.Drawing.Image;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
@@ -49,6 +52,7 @@ namespace Kollector
         private PathFigure _lassoSelectionForegroundGeometry;
         private RectangleGeometry _rectSelectionForegroundGeometry;
         private CombinedGeometry _selectionBackgroundGeometry;
+        private bool reseted = true;
 
         public MainWindow()
         {
@@ -71,10 +75,15 @@ namespace Kollector
 
         private void _globalHook_MouseUp(object sender, MouseEventArgs e)
         {
-            MainCanvas.Children.Clear();
-            _drawing = false;
-            _start = false;
-            BackgroundBrush.Opacity = 0;
+            if (_drawing && _start)
+            {
+                _drawing = false;
+                _start = false;
+                reseted = false;
+
+                SetupNotebookIcons();
+            }
+
         }
 
         private void _globalHook_MouseMove(object sender, MouseEventArgs e)
@@ -93,9 +102,17 @@ namespace Kollector
                     var width = Math.Abs(point.X - _startPoint.X);
                     var height = Math.Abs(point.Y - _startPoint.Y);
                     _rectSelectionForegroundGeometry.Rect = new Rect(_startPoint, new System.Windows.Size(width, height));
-                    //rectangle.Width = width;
-                    //rectangle.Height = height;
                 }
+            }
+        }
+
+        private void MainCanvas_OnMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_drawing && !_start)
+            {
+                MainCanvas.Children.Clear();
+                BackgroundBrush.Opacity = 0;
+                reseted = true;
             }
         }
 
@@ -105,58 +122,90 @@ namespace Kollector
             {
                 BackgroundBrush.Opacity = 0;
 
-                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
+                var point = new Point(e.X*_xRatio, e.Y*_yRatio);
                 _startPoint = point;
                 _drawing = true;
 
-                _selectionForegroundPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5};
-                _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = 0.2};
-
-                if (_mode == Mode.Lasso)
-                {
-                    _lassoSelectionForegroundGeometry = new PathFigure {StartPoint = point};
-                    _selectionForegroundPath.Data = new PathGeometry(new List<PathFigure> {_lassoSelectionForegroundGeometry});
-                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = point});
-
-                    _selectionBackgroundGeometry = new CombinedGeometry
-                    {
-                        GeometryCombineMode = GeometryCombineMode.Xor,
-                        Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
-                        Geometry2 = _selectionForegroundPath.Data
-                    };
-                    _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
-                }
-                else if(_mode == Mode.Rectangle)
-                {
-                    _rectSelectionForegroundGeometry = new RectangleGeometry(new Rect(_startPoint, new System.Windows.Size(0,0)));
-                    _selectionForegroundPath.Data = _rectSelectionForegroundGeometry;
-
-                    _selectionBackgroundGeometry = new CombinedGeometry
-                    {
-                        GeometryCombineMode = GeometryCombineMode.Xor,
-                        Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
-                        Geometry2 = _selectionForegroundPath.Data
-                    };
-                    _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
-                }
-                MainCanvas.Children.Add(_selectionForegroundPath);
-                MainCanvas.Children.Add(_selectionBackgroundPath);
+                SetupSelectionGeometry();
             }
+        }
+
+        private void SetupNotebookIcons()
+        {
+            var notebookIcon = new ImageBrush();
+            var icon = ImageAwesome.CreateImageSource(FontAwesomeIcon.Book, Brushes.White);
+            notebookIcon.ImageSource = icon;
+            var notebookRectangle = new Rectangle { Fill = notebookIcon, Width = 25, Height = 25 };
+            Canvas.SetLeft(notebookRectangle, _startPoint.X);
+            Canvas.SetTop(notebookRectangle, _startPoint.Y - 50);
+            MainCanvas.Children.Add(notebookRectangle);
+            notebookRectangle.BeginAnimation(OpacityProperty, new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = new Duration(TimeSpan.FromSeconds(0.5)),
+                EasingFunction = new SineEase()
+                {
+                    EasingMode = EasingMode.EaseIn,
+                } 
+            });
+            notebookRectangle.MouseDown += (sender, args) => { args.Handled = true; };
+        }
+
+        private void SetupSelectionGeometry()
+        {
+            _selectionForegroundPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5 };
+            _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = 0.2 };
+
+            if (_mode == Mode.Lasso)
+            {
+                _lassoSelectionForegroundGeometry = new PathFigure { StartPoint = _startPoint };
+                _selectionForegroundPath.Data = new PathGeometry(new List<PathFigure> { _lassoSelectionForegroundGeometry });
+                _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = _startPoint });
+
+                _selectionBackgroundGeometry = new CombinedGeometry
+                {
+                    GeometryCombineMode = GeometryCombineMode.Xor,
+                    Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
+                    Geometry2 = _selectionForegroundPath.Data
+                };
+                _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
+            }
+            else if (_mode == Mode.Rectangle)
+            {
+                _rectSelectionForegroundGeometry = new RectangleGeometry(new Rect(this._startPoint, new System.Windows.Size(0, 0)));
+                _selectionForegroundPath.Data = _rectSelectionForegroundGeometry;
+
+                _selectionBackgroundGeometry = new CombinedGeometry
+                {
+                    GeometryCombineMode = GeometryCombineMode.Xor,
+                    Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
+                    Geometry2 = _selectionForegroundPath.Data
+                };
+                _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
+            }
+
+
+            MainCanvas.Children.Add(_selectionForegroundPath);
+            MainCanvas.Children.Add(_selectionBackgroundPath);
         }
 
         private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
         {
-            if (e.KeyChar == '1')
+            if (reseted)
             {
-                _start = true;
-                BackgroundBrush.Opacity = 0.2;
-                _mode = Mode.Rectangle;
-            }
-            else if (e.KeyChar == '2')
-            {
-                _start = true;
-                BackgroundBrush.Opacity = 0.2;
-                _mode = Mode.Lasso;
+                if (e.KeyChar == '1')
+                {
+                    _start = true;
+                    BackgroundBrush.Opacity = 0.2;
+                    _mode = Mode.Rectangle;
+                }
+                else if (e.KeyChar == '2')
+                {
+                    _start = true;
+                    BackgroundBrush.Opacity = 0.2;
+                    _mode = Mode.Lasso;
+                }
             }
         }
 
@@ -200,5 +249,6 @@ namespace Kollector
             }
         }
         #endregion
+
     }
 }
