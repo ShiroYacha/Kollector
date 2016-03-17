@@ -11,6 +11,7 @@
         Title="MainWindow"
         Deactivated="MainWindow_OnDeactivated"
         Topmost="True"
+        ShowInTaskbar="False"
         Loaded="MainWindow_OnLoaded">
     <Window.Background>
         <SolidColorBrush x:Name="BackgroundBrush" Color="White"  Opacity="0.0"/>
