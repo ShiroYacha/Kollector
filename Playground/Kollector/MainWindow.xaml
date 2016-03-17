@@ -1,0 +1,25 @@
+﻿<Window x:Class="Kollector.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Kollector"
+        mc:Ignorable="d"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        WindowState="Maximized"
+        Title="MainWindow"
+        Deactivated="MainWindow_OnDeactivated"
+        Topmost="True"
+        Loaded="MainWindow_OnLoaded">
+    <Window.Background>
+        <SolidColorBrush x:Name="BackgroundBrush" Color="White"  Opacity="0.01"/>
+    </Window.Background>
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Canvas Name="MainCanvas">
+            <Canvas.Background>
+                <x:Null/>
+            </Canvas.Background>
+        </Canvas>
+    </Grid>
+</Window>
