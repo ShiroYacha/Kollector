@@ -255,6 +255,7 @@ namespace Kollector
         {
             if (!_reseted)
             {
+                BackgroundBrush.Opacity = 0;
                 MainCanvas.Children.Clear();
                 _drawing = false;
                 _start = false;
