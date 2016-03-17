@@ -17,6 +17,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Gma.System.MouseKeyHook;
+using Brushes = System.Windows.Media.Brushes;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
@@ -42,9 +43,12 @@ namespace Kollector
         private bool _start = false;
         private double _xRatio = 0.0;
         private double _yRatio = 0.0;
-        private Path _lastPath = new Path();
-        private PathFigure _lastFigure = new PathFigure();
         private Point _startPoint;
+        private Path _selectionForegroundPath;
+        private Path _selectionBackgroundPath;
+        private PathFigure _lassoSelectionForegroundGeometry;
+        private RectangleGeometry _rectSelectionForegroundGeometry;
+        private CombinedGeometry _selectionBackgroundGeometry;
 
         public MainWindow()
         {
@@ -80,17 +84,17 @@ namespace Kollector
                 var point = new Point(e.X*_xRatio, e.Y*_yRatio);
                 if (_mode == Mode.Lasso)
                 {
-                    _lastFigure.Segments.RemoveAt(_lastFigure.Segments.Count - 1);
-                    _lastFigure.Segments.Add(new LineSegment {Point = point });
-                    _lastFigure.Segments.Add(new LineSegment {Point = _startPoint });
+                    _lassoSelectionForegroundGeometry.Segments.RemoveAt(_lassoSelectionForegroundGeometry.Segments.Count - 1);
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = point });
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = _startPoint });
                 }
                 else if(_mode == Mode.Rectangle)
                 {
-                    var rectangle = (System.Windows.Shapes.Rectangle)MainCanvas.Children[0];
                     var width = Math.Abs(point.X - _startPoint.X);
                     var height = Math.Abs(point.Y - _startPoint.Y);
-                    rectangle.Width = width;
-                    rectangle.Height = height;
+                    _rectSelectionForegroundGeometry.Rect = new Rect(_startPoint, new System.Windows.Size(width, height));
+                    //rectangle.Width = width;
+                    //rectangle.Height = height;
                 }
             }
         }
@@ -99,34 +103,44 @@ namespace Kollector
         {
             if (_start)
             {
+                BackgroundBrush.Opacity = 0;
+
                 var point = new Point(e.X * _xRatio, e.Y * _yRatio);
                 _startPoint = point;
                 _drawing = true;
 
+                _selectionForegroundPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5};
+                _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = 0.2};
+
                 if (_mode == Mode.Lasso)
                 {
-                    _lastPath = new Path {Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5};
-                    _lastFigure = new PathFigure {StartPoint = point};
-                    _lastPath.Data = new PathGeometry(new List<PathFigure> {_lastFigure});
-                    _lastFigure.Segments.Add(new LineSegment {Point = point});
-                    MainCanvas.Children.Add(_lastPath);
+                    _lassoSelectionForegroundGeometry = new PathFigure {StartPoint = point};
+                    _selectionForegroundPath.Data = new PathGeometry(new List<PathFigure> {_lassoSelectionForegroundGeometry});
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = point});
+
+                    _selectionBackgroundGeometry = new CombinedGeometry
+                    {
+                        GeometryCombineMode = GeometryCombineMode.Xor,
+                        Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
+                        Geometry2 = _selectionForegroundPath.Data
+                    };
+                    _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
                 }
                 else if(_mode == Mode.Rectangle)
                 {
+                    _rectSelectionForegroundGeometry = new RectangleGeometry(new Rect(_startPoint, new System.Windows.Size(0,0)));
+                    _selectionForegroundPath.Data = _rectSelectionForegroundGeometry;
 
-                    var rectangle = new System.Windows.Shapes.Rectangle
+                    _selectionBackgroundGeometry = new CombinedGeometry
                     {
-                        Stroke = new SolidColorBrush(Colors.Red),
-                        StrokeThickness = 5,
-                        //Fill = new SolidColorBrush(Colors.Black),
-                        Width =0,
-                        Height = 0
+                        GeometryCombineMode = GeometryCombineMode.Xor,
+                        Geometry1 = new RectangleGeometry(new Rect(0, 0, MainCanvas.ActualWidth, MainCanvas.ActualHeight)),
+                        Geometry2 = _selectionForegroundPath.Data
                     };
-                    Canvas.SetLeft(rectangle, _startPoint.X);
-                    Canvas.SetTop(rectangle, _startPoint.Y);
-                    MainCanvas.Children.Add(rectangle);
+                    _selectionBackgroundPath.Data = _selectionBackgroundGeometry;
                 }
-
+                MainCanvas.Children.Add(_selectionForegroundPath);
+                MainCanvas.Children.Add(_selectionBackgroundPath);
             }
         }
 
