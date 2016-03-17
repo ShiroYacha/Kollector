@@ -33,7 +33,7 @@ namespace Kollector
     /// </summary>
     public partial class MainWindow : Window
     {
-        private const double SELECTION_BACKGROUND_OPACITY = 0.3;
+        private const double SELECTION_BACKGROUND_OPACITY = 0.8;
         private const double POST_SELECTION_BACKGROUND_OPACITY = 0.8;
         private IKeyboardMouseEvents _globalHook;
 
@@ -275,17 +275,22 @@ namespace Kollector
             {
                 if (e.KeyChar == '1')
                 {
-                    _start = true;
-                    BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+                    StartScreenClipping();
                     _mode = Mode.Rectangle;
                 }
                 else if (e.KeyChar == '2')
                 {
-                    _start = true;
-                    BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+                    StartScreenClipping();
                     _mode = Mode.Lasso;
                 }
             }
+        }
+
+        private void StartScreenClipping()
+        {
+            BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+            _start = true;
+            _reseted = false;
         }
 
         private void MainWindow_OnDeactivated(object sender, EventArgs e)
