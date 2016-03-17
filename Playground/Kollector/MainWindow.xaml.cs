@@ -1,27 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using Brushes = System.Windows.Media.Brushes;
-using Image = System.Drawing.Image;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
+using Orientation = System.Windows.Controls.Orientation;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
@@ -39,6 +33,8 @@ namespace Kollector
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const double SELECTION_BACKGROUND_OPACITY = 0.3;
+        private const double POST_SELECTION_BACKGROUND_OPACITY = 0.8;
         private IKeyboardMouseEvents _globalHook;
 
         private Mode _mode = Mode.Rectangle;
@@ -52,7 +48,7 @@ namespace Kollector
         private PathFigure _lassoSelectionForegroundGeometry;
         private RectangleGeometry _rectSelectionForegroundGeometry;
         private CombinedGeometry _selectionBackgroundGeometry;
-        private bool reseted = true;
+        private bool _reseted = true;
 
         public MainWindow()
         {
@@ -61,8 +57,6 @@ namespace Kollector
 
         private void Setup()
         {
-            BackgroundBrush.Opacity = 0;
-
             _globalHook = Hook.GlobalEvents();
             _globalHook.MouseDown += _globalHook_GlobalHookOnMouseDown;
             _globalHook.MouseUp += _globalHook_MouseUp;
@@ -79,11 +73,26 @@ namespace Kollector
             {
                 _drawing = false;
                 _start = false;
-                reseted = false;
+                _reseted = false;
+
+                _selectionBackgroundPath.Opacity = POST_SELECTION_BACKGROUND_OPACITY;
+                _selectionBackgroundPath.Fill = Brushes.Black;
 
                 SetupNotebookIcons();
             }
 
+        }
+
+        private void SetupNotebookIcons()
+        {
+            // get right most position 
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            var offsetHorizontal= 50;
+            var offsetVertical = 65;
+            // setup the 3 notebooks
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X+ offsetHorizontal, bounds.TopRight.Y);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical*2);
         }
 
         private void _globalHook_MouseMove(object sender, MouseEventArgs e)
@@ -112,7 +121,7 @@ namespace Kollector
             {
                 MainCanvas.Children.Clear();
                 BackgroundBrush.Opacity = 0;
-                reseted = true;
+                _reseted = true;
             }
         }
 
@@ -130,16 +139,69 @@ namespace Kollector
             }
         }
 
-        private void SetupNotebookIcons()
+        private void SetupNotebookIcon(FontAwesomeIcon icon, string title, System.Windows.Media.Brush brush, double X, double Y)
         {
-            var notebookIcon = new ImageBrush();
-            var icon = ImageAwesome.CreateImageSource(FontAwesomeIcon.Book, Brushes.White);
-            notebookIcon.ImageSource = icon;
-            var notebookRectangle = new Rectangle { Fill = notebookIcon, Width = 25, Height = 25 };
-            Canvas.SetLeft(notebookRectangle, _startPoint.X);
-            Canvas.SetTop(notebookRectangle, _startPoint.Y - 50);
-            MainCanvas.Children.Add(notebookRectangle);
-            notebookRectangle.BeginAnimation(OpacityProperty, new DoubleAnimation
+            // container
+            var container = new StackPanel {Orientation = Orientation.Horizontal};
+
+            // icon
+            var iconBrush = new ImageBrush();
+            var iconSource = ImageAwesome.CreateImageSource(icon, brush);
+            iconBrush.ImageSource = iconSource;
+            var notebookRectangle = new Rectangle
+            {
+                Fill = iconBrush,
+                Width = 25,
+                Height = 25,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            container.Children.Add(notebookRectangle);
+
+            // text
+            var textBlock = new TextBlock
+            {
+                Text = title,
+                Foreground = brush,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10,0,0,0)
+            };
+            container.Children.Add(textBlock);
+
+            // setup and run 
+            Canvas.SetLeft(container, X);
+            Canvas.SetTop(container, Y);
+            MainCanvas.Children.Add(container);
+            container.MouseDown += (sender, args) =>
+            {
+                args.Handled = true;
+                var bounceAnimation = new DoubleAnimation
+                {
+                    From = 1.0,
+                    To = 1.2,
+                    Duration = new Duration(TimeSpan.FromSeconds(0.25)),
+                    EasingFunction = new BackEase()
+                    {
+                        EasingMode = EasingMode.EaseIn, 
+                    },
+                    AutoReverse = true
+                };
+                bounceAnimation.Completed += (o, eventArgs) =>
+                {
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(200);
+                        await Dispatcher.InvokeAsync(Reset);
+                    });
+                };
+                var scaleTransform = new ScaleTransform() { ScaleX = 1.0, ScaleY = 1.0 };
+                container.RenderTransform = scaleTransform;
+                container.RenderTransformOrigin = new Point(0.5,0.5);
+                scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnimation);
+                scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnimation);
+            };
+            container.BeginAnimation(OpacityProperty, new DoubleAnimation
             {
                 From = 0.0,
                 To = 1.0,
@@ -147,15 +209,14 @@ namespace Kollector
                 EasingFunction = new SineEase()
                 {
                     EasingMode = EasingMode.EaseIn,
-                } 
+                }
             });
-            notebookRectangle.MouseDown += (sender, args) => { args.Handled = true; };
         }
 
         private void SetupSelectionGeometry()
         {
             _selectionForegroundPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5 };
-            _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = 0.2 };
+            _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = SELECTION_BACKGROUND_OPACITY };
 
             if (_mode == Mode.Lasso)
             {
@@ -190,20 +251,38 @@ namespace Kollector
             MainCanvas.Children.Add(_selectionBackgroundPath);
         }
 
+        private void Reset()
+        {
+            if (!_reseted)
+            {
+                MainCanvas.Children.Clear();
+                _drawing = false;
+                _start = false;
+                _reseted = true;
+            }
+        }
+
         private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
         {
-            if (reseted)
+            if (e.KeyChar == '\u001b')
+            {
+                // escape key => reset
+                Reset();
+                return;
+            }
+
+            if (_reseted)
             {
                 if (e.KeyChar == '1')
                 {
                     _start = true;
-                    BackgroundBrush.Opacity = 0.2;
+                    BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
                     _mode = Mode.Rectangle;
                 }
                 else if (e.KeyChar == '2')
                 {
                     _start = true;
-                    BackgroundBrush.Opacity = 0.2;
+                    BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
                     _mode = Mode.Lasso;
                 }
             }
