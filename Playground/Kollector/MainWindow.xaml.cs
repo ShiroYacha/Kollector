@@ -39,7 +39,7 @@ namespace Kollector
         private const double POST_SELECTION_BACKGROUND_OPACITY = 0.85;
         private const double FONT_SIZE_NORMAL = 20;
         private const double FONT_SIZE_BIGGER = 25;
-        private const double ICON_SIZE_NORMAL = 30;
+        private const double ICON_SIZE_NORMAL = 28;
         private const double ICON_SIZE_BIGGER = 35;
         private const bool DISMISS_ON_CLICK = false;
 
@@ -131,7 +131,7 @@ namespace Kollector
             MainCanvas.Children.Add(container);
 
             // wait a coupe of seconds and show notebooks
-            await Task.Delay(2500);
+            await Task.Delay(2000);
             await Dispatcher.InvokeAsync(() =>
             {
                 if (!_reseted)
@@ -148,13 +148,17 @@ namespace Kollector
             var bounds = _selectionForegroundPath.Data.Bounds;
             var offsetHorizontal = 50;
             var offsetVertical = 65;
+            // setup add new notebook
+            SetupNotebookIcon(FontAwesomeIcon.Plus, "New", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
             // setup the 3 notebooks
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 3);
+            // setup the more notebooks
+            SetupNotebookIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 4);
         }
 
-        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double X, double Y)
+        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double x, double y)
         {
             // container
             var container = new StackPanel { Orientation = Orientation.Horizontal };
@@ -176,8 +180,8 @@ namespace Kollector
             container.Children.Add(textBlock);
 
             // setup
-            Canvas.SetLeft(container, X);
-            Canvas.SetTop(container, Y);
+            Canvas.SetLeft(container, x);
+            Canvas.SetTop(container, y);
             MainCanvas.Children.Add(container);
 
             // setup anim
