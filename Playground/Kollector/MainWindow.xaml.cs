@@ -41,10 +41,11 @@ namespace Kollector
         private const double FONT_SIZE_BIGGER = 25;
         private const double ICON_SIZE_NORMAL = 25;
         private const double ICON_SIZE_BIGGER = 30;
+        private const double OFFSET_VERTICAL = 60;
         private const bool DISMISS_ON_CLICK = false;
         private const int NOTEBOOK_SEARCH_TIME_MS = 2000;
         private const int TAG_EXTRACT_TIME_MS = 1800;
-        private const double OFFSET_VERTICAL = 60;
+        private const int SCAN_TIME_MS= 1800;
 
         private IKeyboardMouseEvents _globalHook;
 
@@ -90,6 +91,15 @@ namespace Kollector
                 {
                     Setup();
                 }
+
+        #endregion
+
+        #region Scan
+
+        private void Scan()
+        {
+            
+        }
 
         #endregion
 
@@ -308,7 +318,7 @@ namespace Kollector
 
         private void SetupSelectionGeometry()
         {
-            _selectionForegroundPath = new Path { StrokeThickness = 5 };
+            _selectionForegroundPath = new Path { StrokeThickness = 5,  };
             _selectionForegroundPath.SetResourceReference(Path.StrokeProperty, "AccentColorBrush");
             _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = SELECTION_BACKGROUND_OPACITY };
 
@@ -420,6 +430,7 @@ namespace Kollector
 
                 Mouse.OverrideCursor = null;
 
+                Scan();
                 SearchTags();
                 SearchNotebooks();
             }
