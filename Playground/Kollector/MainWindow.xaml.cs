@@ -15,6 +15,7 @@ using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using LoadingIndicators.WPF;
 using Brushes = System.Windows.Media.Brushes;
+using Cursors = System.Windows.Input.Cursors;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using Orientation = System.Windows.Controls.Orientation;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
@@ -78,6 +79,8 @@ namespace Kollector
 
                 _selectionBackgroundPath.Opacity = POST_SELECTION_BACKGROUND_OPACITY;
                 _selectionBackgroundPath.Fill = Brushes.Black;
+
+                Mouse.OverrideCursor = null;
 
                 SearchingNotebooks();
             }
@@ -168,10 +171,12 @@ namespace Kollector
             };
             container.Children.Add(textBlock);
 
-            // setup and run 
+            // setup
             Canvas.SetLeft(container, X);
             Canvas.SetTop(container, Y);
             MainCanvas.Children.Add(container);
+
+            // setup anim
             container.MouseDown += (sender, args) =>
             {
                 args.Handled = true;
@@ -210,6 +215,10 @@ namespace Kollector
                 translateTransform.BeginAnimation(TranslateTransform.XProperty, translateAnimation);
                 container.BeginAnimation(OpacityProperty, disappearAnimation);
             };
+            //cursor
+            container.MouseEnter += (sender, args) => { Mouse.OverrideCursor = Cursors.Hand; };
+            container.MouseLeave += (sender, args) => { Mouse.OverrideCursor = null; };
+            // run animation
             container.BeginAnimation(OpacityProperty, new DoubleAnimation
             {
                 From = 0.0,
@@ -263,6 +272,8 @@ namespace Kollector
                 _drawing = true;
 
                 SetupSelectionGeometry();
+
+                Mouse.OverrideCursor = Cursors.Cross;
             }
         }
 
