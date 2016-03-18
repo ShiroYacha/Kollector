@@ -39,10 +39,12 @@ namespace Kollector
         private const double POST_SELECTION_BACKGROUND_OPACITY = 0.85;
         private const double FONT_SIZE_NORMAL = 20;
         private const double FONT_SIZE_BIGGER = 25;
-        private const double ICON_SIZE_NORMAL = 28;
-        private const double ICON_SIZE_BIGGER = 35;
+        private const double ICON_SIZE_NORMAL = 25;
+        private const double ICON_SIZE_BIGGER = 30;
         private const bool DISMISS_ON_CLICK = false;
         private const int NOTEBOOK_SEARCH_TIME_MS = 2000;
+        private const int TAG_EXTRACT_TIME_MS = 1800;
+        private const double OFFSET_VERTICAL = 60;
 
         private IKeyboardMouseEvents _globalHook;
 
@@ -95,7 +97,8 @@ namespace Kollector
 
         private void SearchTags()
         {
-            
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            StartSearchingTags("LoadingIndicatorDoubleBounceStyle", "extracting tags...", bounds.TopLeft.X - 250, bounds.TopLeft.Y);
         }
 
         private async void StartSearchingTags(string style, string text, double x, double y)
@@ -132,15 +135,25 @@ namespace Kollector
             MainCanvas.Children.Add(container);
 
             // wait a coupe of seconds and show notebooks
-            await Task.Delay(NOTEBOOK_SEARCH_TIME_MS);
+            await Task.Delay(TAG_EXTRACT_TIME_MS);
             await Dispatcher.InvokeAsync(() =>
             {
                 if (!_reseted)
                 {
                     MainCanvas.Children.Remove(container);
-                    SetupNotebookIcons();
+
+                    SetupTagIcons(x + 100, y);
                 }
             });
+        }
+
+        private void SetupTagIcons(double x, double y)
+        {
+            var tagNames = new List<string> {"Momo", "Mobile app", "Payment", "Vietnam"};
+            for(var i=0; i< tagNames.Count; ++i)
+            {
+                SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, x, y + OFFSET_VERTICAL*i);
+            }
         }
 
         #endregion
@@ -192,25 +205,22 @@ namespace Kollector
                 if (!_reseted)
                 {
                     MainCanvas.Children.Remove(container);
-                    SetupNotebookIcons();
+                    SetupNotebookIcons(x, y);
                 }
             });
         }
 
-        private void SetupNotebookIcons()
+        private void SetupNotebookIcons(double x, double y)
         {
             // get right most position 
-            var bounds = _selectionForegroundPath.Data.Bounds;
-            var offsetHorizontal = 50;
-            var offsetVertical = 65;
             // setup add new notebook
-            SetupIcon(FontAwesomeIcon.Plus, "New", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
+            SetupIcon(FontAwesomeIcon.Plus, "New", Brushes.White, x, y);
             // setup the 3 notebooks
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 3);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia,x ,y + OFFSET_VERTICAL);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow,x ,y + OFFSET_VERTICAL * 2);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson,x ,y + OFFSET_VERTICAL * 3);
             // setup the more notebooks
-            SetupIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 4);
+            SetupIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White,x ,y + OFFSET_VERTICAL * 4);
         }
 
         private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush,
