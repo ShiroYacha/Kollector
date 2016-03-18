@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
+using LoadingIndicators.WPF;
 using Brushes = System.Windows.Media.Brushes;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using Orientation = System.Windows.Controls.Orientation;
@@ -63,8 +64,8 @@ namespace Kollector
             _globalHook.KeyPress += GlobalHookOnKeyPress;
             _globalHook.MouseMove += _globalHook_MouseMove;
 
-            _xRatio = MainCanvas.ActualWidth / SystemParameters.MaximizedPrimaryScreenWidth;
-            _yRatio = MainCanvas.ActualHeight / SystemParameters.MaximizedPrimaryScreenHeight;
+            _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
+            _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
         }
 
         private void _globalHook_MouseUp(object sender, MouseEventArgs e)
@@ -78,35 +79,76 @@ namespace Kollector
                 _selectionBackgroundPath.Opacity = POST_SELECTION_BACKGROUND_OPACITY;
                 _selectionBackgroundPath.Fill = Brushes.Black;
 
-                SetupNotebookIcons();
+                SearchingNotebooks();
             }
 
         }
+
+        private void SearchingNotebooks()
+        {
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            SetupLoadingIcon("LoadingIndicatorDoubleBounceStyle", "loading...", bounds.TopRight.X+50, bounds.TopRight.Y);
+            //SetupNotebookIcons();
+        }
+
+        private void SetupLoadingIcon(string style, string text, double x, double y)
+        {
+            // container
+            var container = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // setup loading indicator
+            var loadingNotebookIcon = new LoadingIndicator
+            {
+                SpeedRatio =  1,
+                IsActive = true
+            };
+            loadingNotebookIcon.SetResourceReference(StyleProperty, style);
+            container.Children.Add(loadingNotebookIcon);
+
+            // setup text
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+            textBlock.SetResourceReference(ForegroundProperty, "AccentColorBrush");
+            container.Children.Add(textBlock);
+
+            // setup and run
+            Canvas.SetLeft(container, x);
+            Canvas.SetTop(container, y);
+            MainCanvas.Children.Add(container);
+            
+        }
+
 
         private void SetupNotebookIcons()
         {
             // get right most position 
             var bounds = _selectionForegroundPath.Data.Bounds;
-            var offsetHorizontal= 50;
+            var offsetHorizontal = 50;
             var offsetVertical = 65;
             // setup the 3 notebooks
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X+ offsetHorizontal, bounds.TopRight.Y);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical*2);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
         }
 
         private void _globalHook_MouseMove(object sender, MouseEventArgs e)
         {
             if (_drawing)
             {
-                var point = new Point(e.X*_xRatio, e.Y*_yRatio);
+                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
                 if (_mode == Mode.Lasso)
                 {
                     _lassoSelectionForegroundGeometry.Segments.RemoveAt(_lassoSelectionForegroundGeometry.Segments.Count - 1);
-                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = point });
-                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment {Point = _startPoint });
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = point });
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = _startPoint });
                 }
-                else if(_mode == Mode.Rectangle)
+                else if (_mode == Mode.Rectangle)
                 {
                     var width = Math.Abs(point.X - _startPoint.X);
                     var height = Math.Abs(point.Y - _startPoint.Y);
@@ -131,7 +173,7 @@ namespace Kollector
             {
                 BackgroundBrush.Opacity = 0;
 
-                var point = new Point(e.X*_xRatio, e.Y*_yRatio);
+                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
                 _startPoint = point;
                 _drawing = true;
 
@@ -139,33 +181,24 @@ namespace Kollector
             }
         }
 
-        private void SetupNotebookIcon(FontAwesomeIcon icon, string title, System.Windows.Media.Brush brush, double X, double Y)
+        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double X, double Y)
         {
             // container
-            var container = new StackPanel {Orientation = Orientation.Horizontal};
+            var container = new StackPanel { Orientation = Orientation.Horizontal };
 
             // icon
-            var iconBrush = new ImageBrush();
-            var iconSource = ImageAwesome.CreateImageSource(icon, brush);
-            iconBrush.ImageSource = iconSource;
-            var notebookRectangle = new Rectangle
-            {
-                Fill = iconBrush,
-                Width = 25,
-                Height = 25,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            container.Children.Add(notebookRectangle);
+            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush , Width = 25, Height = 25, VerticalAlignment = VerticalAlignment.Center };
+            container.Children.Add(iconBlock);
 
             // text
             var textBlock = new TextBlock
             {
-                Text = title,
+                Text = text,
                 Foreground = brush,
                 FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
                 FontSize = 18,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10,0,0,0)
+                Margin = new Thickness(10, 0, 0, 0)
             };
             container.Children.Add(textBlock);
 
@@ -183,7 +216,7 @@ namespace Kollector
                     Duration = new Duration(TimeSpan.FromSeconds(0.25)),
                     EasingFunction = new BackEase()
                     {
-                        EasingMode = EasingMode.EaseIn, 
+                        EasingMode = EasingMode.EaseIn,
                     },
                     AutoReverse = true
                 };
@@ -197,7 +230,7 @@ namespace Kollector
                 };
                 var scaleTransform = new ScaleTransform() { ScaleX = 1.0, ScaleY = 1.0 };
                 container.RenderTransform = scaleTransform;
-                container.RenderTransformOrigin = new Point(0.5,0.5);
+                container.RenderTransformOrigin = new Point(0.5, 0.5);
                 scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnimation);
                 scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnimation);
             };
@@ -215,7 +248,8 @@ namespace Kollector
 
         private void SetupSelectionGeometry()
         {
-            _selectionForegroundPath = new Path { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 5 };
+            _selectionForegroundPath = new Path {StrokeThickness = 5 };
+            _selectionForegroundPath.SetResourceReference(Path.StrokeProperty, "AccentColorBrush");
             _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = SELECTION_BACKGROUND_OPACITY };
 
             if (_mode == Mode.Lasso)
