@@ -38,9 +38,10 @@ namespace Kollector
         private const double SELECTION_BACKGROUND_OPACITY = 0.7;
         private const double POST_SELECTION_BACKGROUND_OPACITY = 0.85;
         private const double FONT_SIZE_NORMAL = 20;
-        private const double FONT_SIZE_BIGGER= 25;
+        private const double FONT_SIZE_BIGGER = 25;
         private const double ICON_SIZE_NORMAL = 30;
         private const double ICON_SIZE_BIGGER = 35;
+        private const bool DISMISS_ON_CLICK = false;
 
         private IKeyboardMouseEvents _globalHook;
 
@@ -63,40 +64,37 @@ namespace Kollector
             InitializeComponent();
         }
 
-        private void Setup()
-        {
-            _globalHook = Hook.GlobalEvents();
-            _globalHook.MouseDown += _globalHook_GlobalHookOnMouseDown;
-            _globalHook.MouseUp += _globalHook_MouseUp;
-            _globalHook.KeyPress += GlobalHookOnKeyPress;
-            _globalHook.MouseMove += _globalHook_MouseMove;
+        #region Initialization
+                private void Setup()
+                {
+                    _globalHook = Hook.GlobalEvents();
+                    _globalHook.MouseDown += _globalHook_GlobalHookOnMouseDown;
+                    _globalHook.MouseUp += _globalHook_MouseUp;
+                    _globalHook.KeyPress += GlobalHookOnKeyPress;
+                    _globalHook.MouseMove += _globalHook_MouseMove;
 
-            _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
-            _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
-        }
+                    _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
+                    _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
+                }
 
-        private void _globalHook_MouseUp(object sender, MouseEventArgs e)
-        {
-            if (_drawing && _start)
-            {
-                _drawing = false;
-                _start = false;
-                _reseted = false;
 
-                _selectionBackgroundPath.Opacity = POST_SELECTION_BACKGROUND_OPACITY;
-                _selectionBackgroundPath.Fill = Brushes.Black;
+                private void MainWindow_OnDeactivated(object sender, EventArgs e)
+                {
+                    Topmost = true;
+                }
 
-                Mouse.OverrideCursor = null;
+                private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+                {
+                    Setup();
+                }
 
-                SearchingNotebooks();
-            }
+        #endregion
 
-        }
-
+        #region Notebook 
         private void SearchingNotebooks()
         {
             var bounds = _selectionForegroundPath.Data.Bounds;
-            StartLoadingNotebooks("LoadingIndicatorDoubleBounceStyle", "searching notebooks...", bounds.TopRight.X+50, bounds.TopRight.Y);
+            StartLoadingNotebooks("LoadingIndicatorDoubleBounceStyle", "searching notebooks...", bounds.TopRight.X + 50, bounds.TopRight.Y);
         }
 
         private async void StartLoadingNotebooks(string style, string text, double x, double y)
@@ -107,7 +105,7 @@ namespace Kollector
             // setup loading indicator
             var loadingNotebookIcon = new LoadingIndicator
             {
-                SpeedRatio =  1,
+                SpeedRatio = 1,
                 IsActive = true,
                 Width = ICON_SIZE_BIGGER,
                 Height = ICON_SIZE_BIGGER
@@ -140,10 +138,9 @@ namespace Kollector
                 {
                     MainCanvas.Children.Remove(container);
                     SetupNotebookIcons();
-                }   
+                }
             });
         }
-
 
         private void SetupNotebookIcons()
         {
@@ -156,7 +153,6 @@ namespace Kollector
             SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
         }
-
 
         private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double X, double Y)
         {
@@ -239,55 +235,25 @@ namespace Kollector
             });
         }
 
-        private void _globalHook_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_drawing)
-            {
-                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
-                if (_mode == Mode.Lasso)
-                {
-                    _lassoSelectionForegroundGeometry.Segments.RemoveAt(_lassoSelectionForegroundGeometry.Segments.Count - 1);
-                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = point });
-                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = _startPoint });
-                }
-                else if (_mode == Mode.Rectangle)
-                {
-                    var width = Math.Abs(point.X - _startPoint.X);
-                    var height = Math.Abs(point.Y - _startPoint.Y);
-                    _rectSelectionForegroundGeometry.Rect = new Rect(_startPoint, new System.Windows.Size(width, height));
-                }
-            }
-        }
+        #endregion
 
-        private void MainCanvas_OnMouseDown(object sender, MouseButtonEventArgs e)
+        #region Screen-clipping
+
+        private void Reset()
         {
-            if (!_drawing && !_start)
+            if (!_reseted)
             {
+                BackgroundBrush.Opacity = 0;
                 MainCanvas.Children.Clear();
-                BackgroundBrush.Opacity = 0;
+                _drawing = false;
+                _start = false;
                 _reseted = true;
-            }
-        }
-
-        private void _globalHook_GlobalHookOnMouseDown(object sender, MouseEventArgs e)
-        {
-            if (_start)
-            {
-                BackgroundBrush.Opacity = 0;
-
-                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
-                _startPoint = point;
-                _drawing = true;
-
-                SetupSelectionGeometry();
-
-                Mouse.OverrideCursor = Cursors.Cross;
             }
         }
 
         private void SetupSelectionGeometry()
         {
-            _selectionForegroundPath = new Path {StrokeThickness = 5 };
+            _selectionForegroundPath = new Path { StrokeThickness = 5 };
             _selectionForegroundPath.SetResourceReference(Path.StrokeProperty, "AccentColorBrush");
             _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = SELECTION_BACKGROUND_OPACITY };
 
@@ -324,17 +290,15 @@ namespace Kollector
             MainCanvas.Children.Add(_selectionBackgroundPath);
         }
 
-        private void Reset()
+        private void StartScreenClipping()
         {
-            if (!_reseted)
-            {
-                BackgroundBrush.Opacity = 0;
-                MainCanvas.Children.Clear();
-                _drawing = false;
-                _start = false;
-                _reseted = true;
-            }
+            Reset();
+            BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+            _start = true;
+            _reseted = false;
         }
+
+
 
         private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
         {
@@ -360,23 +324,71 @@ namespace Kollector
             }
         }
 
-        private void StartScreenClipping()
+
+        private void MainCanvas_OnMouseDown(object sender, MouseButtonEventArgs e)
         {
-            Reset();
-            BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
-            _start = true;
-            _reseted = false;
+            if (!_drawing && !_start && DISMISS_ON_CLICK)
+            {
+                MainCanvas.Children.Clear();
+                BackgroundBrush.Opacity = 0;
+                _reseted = true;
+            }
         }
 
-        private void MainWindow_OnDeactivated(object sender, EventArgs e)
+        private void _globalHook_MouseMove(object sender, MouseEventArgs e)
         {
-            Topmost = true;
+            if (_drawing)
+            {
+                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
+                if (_mode == Mode.Lasso)
+                {
+                    _lassoSelectionForegroundGeometry.Segments.RemoveAt(_lassoSelectionForegroundGeometry.Segments.Count - 1);
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = point });
+                    _lassoSelectionForegroundGeometry.Segments.Add(new LineSegment { Point = _startPoint });
+                }
+                else if (_mode == Mode.Rectangle)
+                {
+                    var width = Math.Abs(point.X - _startPoint.X);
+                    var height = Math.Abs(point.Y - _startPoint.Y);
+                    _rectSelectionForegroundGeometry.Rect = new Rect(_startPoint, new System.Windows.Size(width, height));
+                }
+            }
         }
 
-        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        private void _globalHook_MouseUp(object sender, MouseEventArgs e)
         {
-            Setup();
+            if (_drawing && _start)
+            {
+                _drawing = false;
+                _start = false;
+                _reseted = false;
+
+                _selectionBackgroundPath.Opacity = POST_SELECTION_BACKGROUND_OPACITY;
+                _selectionBackgroundPath.Fill = Brushes.Black;
+
+                Mouse.OverrideCursor = null;
+
+                SearchingNotebooks();
+            }
+
         }
+
+        private void _globalHook_GlobalHookOnMouseDown(object sender, MouseEventArgs e)
+        {
+            if (_start)
+            {
+                BackgroundBrush.Opacity = 0;
+
+                var point = new Point(e.X * _xRatio, e.Y * _yRatio);
+                _startPoint = point;
+                _drawing = true;
+
+                SetupSelectionGeometry();
+
+                Mouse.OverrideCursor = Cursors.Cross;
+            }
+        }
+        #endregion
 
         #region Screenshoots
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
