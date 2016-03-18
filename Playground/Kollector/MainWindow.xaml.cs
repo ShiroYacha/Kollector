@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -14,6 +16,7 @@ using System.Windows.Shapes;
 using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using LoadingIndicators.WPF;
+using Markdown.Xaml;
 using Brushes = System.Windows.Media.Brushes;
 using Cursors = System.Windows.Input.Cursors;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
@@ -21,6 +24,7 @@ using Orientation = System.Windows.Controls.Orientation;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace Kollector
 {
@@ -42,10 +46,11 @@ namespace Kollector
         private const double ICON_SIZE_NORMAL = 25;
         private const double ICON_SIZE_BIGGER = 30;
         private const double OFFSET_VERTICAL = 60;
+        private const double NOTEPAD_MIN_WIDTH = 800;
         private const bool DISMISS_ON_CLICK = false;
         private const int NOTEBOOK_SEARCH_TIME_MS = 2000;
         private const int TAG_EXTRACT_TIME_MS = 1800;
-        private const int SCAN_TIME_MS= 1800;
+        private const int SCAN_TIME_MS = 1800;
 
         private IKeyboardMouseEvents _globalHook;
 
@@ -69,28 +74,27 @@ namespace Kollector
         }
 
         #region Initialization
-                private void Setup()
-                {
-                    _globalHook = Hook.GlobalEvents();
-                    _globalHook.MouseDown += _globalHook_GlobalHookOnMouseDown;
-                    _globalHook.MouseUp += _globalHook_MouseUp;
-                    _globalHook.KeyPress += GlobalHookOnKeyPress;
-                    _globalHook.MouseMove += _globalHook_MouseMove;
+        private void Setup()
+        {
+            _globalHook = Hook.GlobalEvents();
+            _globalHook.MouseDown += _globalHook_GlobalHookOnMouseDown;
+            _globalHook.MouseUp += _globalHook_MouseUp;
+            _globalHook.KeyUp += _globalHook_KeyUp; ;
+            _globalHook.MouseMove += _globalHook_MouseMove;
 
-                    _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
-                    _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
-                }
+            _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
+            _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
+        }
 
+        private void MainWindow_OnDeactivated(object sender, EventArgs e)
+        {
+            Topmost = true;
+        }
 
-                private void MainWindow_OnDeactivated(object sender, EventArgs e)
-                {
-                    Topmost = true;
-                }
-
-                private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
-                {
-                    Setup();
-                }
+        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            Setup();
+        }
 
         #endregion
 
@@ -98,9 +102,68 @@ namespace Kollector
 
         private void Scan()
         {
-            
+
         }
 
+        #endregion
+
+        #region Notes
+
+        private void SetupNotepad()
+        {
+            // compute boundaries
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            var width = Math.Max(bounds.Width, NOTEPAD_MIN_WIDTH);
+            var left = bounds.Left + bounds.Width / 2 - width / 2;
+            var top = bounds.Bottom + 40;
+
+            // create grid
+            var grid = new Grid {Width = width, Height = 300};
+            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(1, GridUnitType.Star)});
+            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(20)});
+            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(1, GridUnitType.Star)});
+
+            // create text editor
+            var editor = new TextBox
+            {
+                FontSize = FONT_SIZE_NORMAL,
+                Foreground = Brushes.White,
+                Background = Brushes.Transparent,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true,
+                CaretBrush = Brushes.DodgerBlue
+            };
+            Grid.SetColumn(editor, 0);
+
+            // create text viewer
+            var viewer = new FlowDocumentScrollViewer
+            {
+                FontSize = FONT_SIZE_NORMAL,
+                Foreground = Brushes.White,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                Background = Brushes.Transparent
+            };
+            var binding = new Binding()
+            {
+                Source = editor,
+                Path = new PropertyPath("Text"),
+                Converter = (TextToFlowDocumentConverter) FindResource("TextToFlowDocumentConverter")
+            };
+            viewer.SetBinding(FlowDocumentScrollViewer.DocumentProperty, binding);
+            Grid.SetColumn(viewer, 2);
+
+            // add to grid
+            grid.Children.Add(editor);
+            grid.Children.Add(viewer);
+
+            // add to canvas
+            Canvas.SetTop(grid, top);
+            Canvas.SetLeft(grid, left);
+            MainCanvas.Children.Add(grid);
+
+            // set focus to editor
+            editor.Focus();
+        }
         #endregion
 
         #region Tags
@@ -159,16 +222,16 @@ namespace Kollector
 
         private void SetupTagIcons(double x, double y)
         {
-            var tagNames = new List<string> {"Momo", "Mobile app", "Payment", "Vietnam"};
-            for(var i=0; i< tagNames.Count; ++i)
+            var tagNames = new List<string> { "Momo", "Mobile app", "Payment", "Vietnam" };
+            for (var i = 0; i < tagNames.Count; ++i)
             {
-                SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, x, y + OFFSET_VERTICAL*i);
+                SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, x, y + OFFSET_VERTICAL * i);
             }
         }
 
         #endregion
 
-        #region Notebook 
+        #region Notebook
         private void SearchNotebooks()
         {
             var bounds = _selectionForegroundPath.Data.Bounds;
@@ -222,15 +285,15 @@ namespace Kollector
 
         private void SetupNotebookIcons(double x, double y)
         {
-            // get right most position 
+            // get right most position
             // setup add new notebook
             SetupIcon(FontAwesomeIcon.Plus, "New", Brushes.White, x, y);
             // setup the 3 notebooks
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia,x ,y + OFFSET_VERTICAL);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow,x ,y + OFFSET_VERTICAL * 2);
-            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson,x ,y + OFFSET_VERTICAL * 3);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, x, y + OFFSET_VERTICAL);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, x, y + OFFSET_VERTICAL * 2);
+            SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, x, y + OFFSET_VERTICAL * 3);
             // setup the more notebooks
-            SetupIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White,x ,y + OFFSET_VERTICAL * 4);
+            SetupIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White, x, y + OFFSET_VERTICAL * 4);
         }
 
         private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush,
@@ -318,7 +381,7 @@ namespace Kollector
 
         private void SetupSelectionGeometry()
         {
-            _selectionForegroundPath = new Path { StrokeThickness = 5,  };
+            _selectionForegroundPath = new Path { StrokeThickness = 5, };
             _selectionForegroundPath.SetResourceReference(Path.StrokeProperty, "AccentColorBrush");
             _selectionBackgroundPath = new Path { Fill = Brushes.White, Opacity = SELECTION_BACKGROUND_OPACITY };
 
@@ -359,13 +422,15 @@ namespace Kollector
         {
             Reset();
             BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+            Mouse.OverrideCursor = Cursors.Cross;
             _start = true;
             _reseted = false;
         }
 
-        private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
+
+        private void _globalHook_KeyUp(object sender, System.Windows.Forms.KeyEventArgs e)
         {
-            if (e.KeyChar == '\u001b')
+            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
             {
                 // escape key => reset
                 Reset();
@@ -374,12 +439,12 @@ namespace Kollector
 
             if (_reseted)
             {
-                if (e.KeyChar == '1')
+                if (e.KeyCode == System.Windows.Forms.Keys.D1)
                 {
                     StartScreenClipping();
                     _mode = Mode.Rectangle;
                 }
-                else if (e.KeyChar == '2')
+                else if (e.KeyCode == System.Windows.Forms.Keys.D2)
                 {
                     StartScreenClipping();
                     _mode = Mode.Lasso;
@@ -430,6 +495,7 @@ namespace Kollector
 
                 Mouse.OverrideCursor = null;
 
+                SetupNotepad();
                 Scan();
                 SearchTags();
                 SearchNotebooks();
@@ -513,6 +579,6 @@ namespace Kollector
             return container;
         }
 
-       
+
     }
 }

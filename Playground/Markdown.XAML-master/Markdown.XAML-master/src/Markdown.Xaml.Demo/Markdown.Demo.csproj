@@ -1,19 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{04717246-B58A-4F95-AE1B-6A1DD457A2CF}</ProjectGuid>
+    <ProjectGuid>{75978320-D1C6-4662-9563-5BAF7CE8A540}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Kollector</RootNamespace>
-    <AssemblyName>Kollector</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <RootNamespace>Markdown.Demo</RootNamespace>
+    <AssemblyName>Markdown.Demo</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -35,20 +34,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FontAwesome.WPF, Version=4.5.0.37524, Culture=neutral, PublicKeyToken=0758b07a11a4f466, processorArchitecture=MSIL">
-      <HintPath>packages\FontAwesome.WPF.4.5.0.8\lib\net40\FontAwesome.WPF.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Net.Http" />
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
@@ -92,27 +84,18 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <None Include="packages.config" />
+    <EmbeddedResource Include="MainWindow.md" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
-    <None Include="Sample.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\globalmousekeyhook-vNext\MouseKeyHook\MouseKeyHook.csproj">
-      <Project>{f52aa97e-180a-40ed-8f2b-09080171d6c7}</Project>
-      <Name>MouseKeyHook</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\LoadingIndicators.WPF-master\LoadingIndicators.WPF-master\LoadingIndicators.WPF\LoadingIndicators.WPF.csproj">
-      <Project>{e49229cc-d702-478f-90e0-6e1a284272f6}</Project>
-      <Name>LoadingIndicators.WPF</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Markdown.XAML-master\Markdown.XAML-master\src\Markdown.Xaml\Markdown.Xaml.csproj">
+    <ProjectReference Include="..\Markdown.Xaml\Markdown.Xaml.csproj">
       <Project>{34186c3b-c308-4cae-b462-db7b5f5e378c}</Project>
       <Name>Markdown.Xaml</Name>
     </ProjectReference>
