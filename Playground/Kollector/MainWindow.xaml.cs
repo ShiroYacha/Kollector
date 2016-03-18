@@ -42,6 +42,7 @@ namespace Kollector
         private const double ICON_SIZE_NORMAL = 28;
         private const double ICON_SIZE_BIGGER = 35;
         private const bool DISMISS_ON_CLICK = false;
+        private const int NOTEBOOK_SEARCH_TIME_MS = 2000;
 
         private IKeyboardMouseEvents _globalHook;
 
@@ -90,14 +91,14 @@ namespace Kollector
 
         #endregion
 
-        #region Notebook 
-        private void SearchingNotebooks()
+        #region Tags
+
+        private void SearchTags()
         {
-            var bounds = _selectionForegroundPath.Data.Bounds;
-            StartLoadingNotebooks("LoadingIndicatorDoubleBounceStyle", "searching notebooks...", bounds.TopRight.X + 50, bounds.TopRight.Y);
+            
         }
 
-        private async void StartLoadingNotebooks(string style, string text, double x, double y)
+        private async void StartSearchingTags(string style, string text, double x, double y)
         {
             // loading container
             var container = new StackPanel { Orientation = Orientation.Horizontal };
@@ -131,7 +132,61 @@ namespace Kollector
             MainCanvas.Children.Add(container);
 
             // wait a coupe of seconds and show notebooks
-            await Task.Delay(2000);
+            await Task.Delay(NOTEBOOK_SEARCH_TIME_MS);
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!_reseted)
+                {
+                    MainCanvas.Children.Remove(container);
+                    SetupNotebookIcons();
+                }
+            });
+        }
+
+        #endregion
+
+        #region Notebook 
+        private void SearchNotebooks()
+        {
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            StartSearchingNotebooks("LoadingIndicatorDoubleBounceStyle", "searching notebooks...", bounds.TopRight.X + 50, bounds.TopRight.Y);
+        }
+
+        private async void StartSearchingNotebooks(string style, string text, double x, double y)
+        {
+            // loading container
+            var container = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // setup loading indicator
+            var loadingNotebookIcon = new LoadingIndicator
+            {
+                SpeedRatio = 1,
+                IsActive = true,
+                Width = ICON_SIZE_BIGGER,
+                Height = ICON_SIZE_BIGGER
+            };
+            loadingNotebookIcon.SetResourceReference(StyleProperty, style);
+            container.Children.Add(loadingNotebookIcon);
+
+            // setup loading text
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize = FONT_SIZE_BIGGER,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+            textBlock.SetResourceReference(ForegroundProperty, "AccentColorBrush");
+            container.Children.Add(textBlock);
+
+            // setup and run
+            Canvas.SetLeft(container, x);
+            Canvas.SetTop(container, y);
+            MainCanvas.Children.Add(container);
+
+            // wait a coupe of seconds and show notebooks
+            await Task.Delay(NOTEBOOK_SEARCH_TIME_MS);
             await Dispatcher.InvokeAsync(() =>
             {
                 if (!_reseted)
@@ -149,41 +204,24 @@ namespace Kollector
             var offsetHorizontal = 50;
             var offsetVertical = 65;
             // setup add new notebook
-            SetupNotebookIcon(FontAwesomeIcon.Plus, "New", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
+            SetupIcon(FontAwesomeIcon.Plus, "New", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
             // setup the 3 notebooks
             SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 3);
             // setup the more notebooks
-            SetupNotebookIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 4);
+            SetupIcon(FontAwesomeIcon.EllipsisH, "More", Brushes.White, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 4);
         }
 
-        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double x, double y)
+        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush,
+            double x, double y)
         {
-            // container
-            var container = new StackPanel { Orientation = Orientation.Horizontal };
+            var container = SetupIcon(icon, text, brush, x, y);
+            HandleNotebookIconAction(container);
+        }
 
-            // icon
-            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush, Width = ICON_SIZE_NORMAL, Height = ICON_SIZE_NORMAL, VerticalAlignment = VerticalAlignment.Center };
-            container.Children.Add(iconBlock);
-
-            // text
-            var textBlock = new TextBlock
-            {
-                Text = text,
-                Foreground = brush,
-                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
-                FontSize = FONT_SIZE_NORMAL,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 0, 0)
-            };
-            container.Children.Add(textBlock);
-
-            // setup
-            Canvas.SetLeft(container, x);
-            Canvas.SetTop(container, y);
-            MainCanvas.Children.Add(container);
-
+        private void HandleNotebookIconAction(StackPanel container)
+        {
             // setup anim
             container.MouseDown += (sender, args) =>
             {
@@ -302,8 +340,6 @@ namespace Kollector
             _reseted = false;
         }
 
-
-
         private void GlobalHookOnKeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == '\u001b')
@@ -327,7 +363,6 @@ namespace Kollector
                 }
             }
         }
-
 
         private void MainCanvas_OnMouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -372,7 +407,8 @@ namespace Kollector
 
                 Mouse.OverrideCursor = null;
 
-                SearchingNotebooks();
+                SearchTags();
+                SearchNotebooks();
             }
 
         }
@@ -425,5 +461,34 @@ namespace Kollector
         }
         #endregion
 
+        private StackPanel SetupIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double x, double y)
+        {
+            // container
+            var container = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // icon
+            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush, Width = ICON_SIZE_NORMAL, Height = ICON_SIZE_NORMAL, VerticalAlignment = VerticalAlignment.Center };
+            container.Children.Add(iconBlock);
+
+            // text
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                Foreground = brush,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize = FONT_SIZE_NORMAL,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+            container.Children.Add(textBlock);
+
+            // setup
+            Canvas.SetLeft(container, x);
+            Canvas.SetTop(container, y);
+            MainCanvas.Children.Add(container);
+            return container;
+        }
+
+       
     }
 }
