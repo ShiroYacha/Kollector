@@ -239,19 +239,20 @@ namespace Kollector
                 var disappearAnimation = new DoubleAnimation
                 {
                     From = 1,
-                    To = 0,
-                    Duration = new Duration(TimeSpan.FromSeconds(0.35)),
+                    To = 0.2,
+                    Duration = new Duration(TimeSpan.FromSeconds(0.30)),
                     EasingFunction = new PowerEase()
                     {
                         EasingMode = EasingMode.EaseOut,
                         Power = 1.5
                     },
+                    AutoReverse = true
                 };
                 var translateAnimation = new DoubleAnimation
                 {
                     From = 0,
                     To = 100,
-                    Duration = new Duration(TimeSpan.FromSeconds(0.35)),
+                    Duration = new Duration(TimeSpan.FromSeconds(0.20)),
                     EasingFunction = new PowerEase()
                     {
                         EasingMode = EasingMode.EaseOut,
@@ -267,9 +268,9 @@ namespace Kollector
                     });
                 };
                 var translateTransform = new TranslateTransform();
-                container.RenderTransform = translateTransform;
+                MainCanvas.RenderTransform = translateTransform;
                 translateTransform.BeginAnimation(TranslateTransform.XProperty, translateAnimation);
-                container.BeginAnimation(OpacityProperty, disappearAnimation);
+                MainCanvas.BeginAnimation(OpacityProperty, disappearAnimation);
             };
             //cursor
             container.MouseEnter += (sender, args) => { Mouse.OverrideCursor = Cursors.Hand; };
@@ -297,6 +298,8 @@ namespace Kollector
             {
                 BackgroundBrush.Opacity = 0;
                 MainCanvas.Children.Clear();
+                MainCanvas.Opacity = 1;
+                MainCanvas.RenderTransform = null;
                 _drawing = false;
                 _start = false;
                 _reseted = true;
