@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -17,6 +17,7 @@ using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using LoadingIndicators.WPF;
 using Markdown.Xaml;
+using Binding = System.Windows.Data.Binding;
 using Brushes = System.Windows.Media.Brushes;
 using Cursors = System.Windows.Input.Cursors;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
@@ -84,6 +85,21 @@ namespace Kollector
 
             _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
             _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
+
+            SetupNotifyIcon();
+        }
+
+        private static void SetupNotifyIcon()
+        {
+            var notifyIcon = new System.Windows.Forms.NotifyIcon { Icon = new Icon("Icon.ico"), Visible = true };
+            notifyIcon.ShowBalloonTip(1000, "Kollector", "Kollector is up and running", System.Windows.Forms.ToolTipIcon.Info);
+            notifyIcon.ContextMenu = new System.Windows.Forms.ContextMenu(new System.Windows.Forms.MenuItem[]
+            {
+                new System.Windows.Forms.MenuItem("Close", (sender, args) =>
+                {
+                    Application.Current.Shutdown();
+                })
+            });
         }
 
         private void MainWindow_OnDeactivated(object sender, EventArgs e)
