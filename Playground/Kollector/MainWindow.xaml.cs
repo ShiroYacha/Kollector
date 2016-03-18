@@ -99,6 +99,7 @@ namespace Kollector
                 new System.Windows.Forms.MenuItem("Close", (sender, args) =>
                 {
                     Application.Current.Shutdown();
+                    notifyIcon.Dispose();
                 })
             });
         }
