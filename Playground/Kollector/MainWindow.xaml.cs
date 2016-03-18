@@ -87,13 +87,12 @@ namespace Kollector
         private void SearchingNotebooks()
         {
             var bounds = _selectionForegroundPath.Data.Bounds;
-            SetupLoadingIcon("LoadingIndicatorDoubleBounceStyle", "loading...", bounds.TopRight.X+50, bounds.TopRight.Y);
-            //SetupNotebookIcons();
+            StartLoadingNotebooks("LoadingIndicatorDoubleBounceStyle", "searching notebooks...", bounds.TopRight.X+50, bounds.TopRight.Y);
         }
 
-        private void SetupLoadingIcon(string style, string text, double x, double y)
+        private async void StartLoadingNotebooks(string style, string text, double x, double y)
         {
-            // container
+            // loading container
             var container = new StackPanel { Orientation = Orientation.Horizontal };
 
             // setup loading indicator
@@ -105,7 +104,7 @@ namespace Kollector
             loadingNotebookIcon.SetResourceReference(StyleProperty, style);
             container.Children.Add(loadingNotebookIcon);
 
-            // setup text
+            // setup loading text
             var textBlock = new TextBlock
             {
                 Text = text,
@@ -121,7 +120,17 @@ namespace Kollector
             Canvas.SetLeft(container, x);
             Canvas.SetTop(container, y);
             MainCanvas.Children.Add(container);
-            
+
+            // wait a coupe of seconds and show notebooks
+            await Task.Delay(2500);
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!_reseted)
+                {
+                    MainCanvas.Children.Remove(container);
+                    SetupNotebookIcons();
+                }   
+            });
         }
 
 
@@ -135,6 +144,82 @@ namespace Kollector
             SetupNotebookIcon(FontAwesomeIcon.Book, "Technology", Brushes.Fuchsia, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Personal finance", Brushes.GreenYellow, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical);
             SetupNotebookIcon(FontAwesomeIcon.Book, "Project FinTech", Brushes.Crimson, bounds.TopRight.X + offsetHorizontal, bounds.TopRight.Y + offsetVertical * 2);
+        }
+
+
+        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double X, double Y)
+        {
+            // container
+            var container = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // icon
+            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush, Width = 25, Height = 25, VerticalAlignment = VerticalAlignment.Center };
+            container.Children.Add(iconBlock);
+
+            // text
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                Foreground = brush,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+            container.Children.Add(textBlock);
+
+            // setup and run 
+            Canvas.SetLeft(container, X);
+            Canvas.SetTop(container, Y);
+            MainCanvas.Children.Add(container);
+            container.MouseDown += (sender, args) =>
+            {
+                args.Handled = true;
+                var disappearAnimation = new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = new Duration(TimeSpan.FromSeconds(0.35)),
+                    EasingFunction = new PowerEase()
+                    {
+                        EasingMode = EasingMode.EaseOut,
+                        Power = 1.5
+                    },
+                };
+                var translateAnimation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 100,
+                    Duration = new Duration(TimeSpan.FromSeconds(0.35)),
+                    EasingFunction = new PowerEase()
+                    {
+                        EasingMode = EasingMode.EaseOut,
+                        Power = 2
+                    },
+                };
+                translateAnimation.Completed += (o, eventArgs) =>
+                {
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(150);
+                        await Dispatcher.InvokeAsync(Reset);
+                    });
+                };
+                var translateTransform = new TranslateTransform();
+                container.RenderTransform = translateTransform;
+                translateTransform.BeginAnimation(TranslateTransform.XProperty, translateAnimation);
+                container.BeginAnimation(OpacityProperty, disappearAnimation);
+            };
+            container.BeginAnimation(OpacityProperty, new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = new Duration(TimeSpan.FromSeconds(0.5)),
+                EasingFunction = new SineEase()
+                {
+                    EasingMode = EasingMode.EaseIn,
+                }
+            });
         }
 
         private void _globalHook_MouseMove(object sender, MouseEventArgs e)
@@ -179,71 +264,6 @@ namespace Kollector
 
                 SetupSelectionGeometry();
             }
-        }
-
-        private void SetupNotebookIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double X, double Y)
-        {
-            // container
-            var container = new StackPanel { Orientation = Orientation.Horizontal };
-
-            // icon
-            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush , Width = 25, Height = 25, VerticalAlignment = VerticalAlignment.Center };
-            container.Children.Add(iconBlock);
-
-            // text
-            var textBlock = new TextBlock
-            {
-                Text = text,
-                Foreground = brush,
-                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
-                FontSize = 18,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 0, 0)
-            };
-            container.Children.Add(textBlock);
-
-            // setup and run 
-            Canvas.SetLeft(container, X);
-            Canvas.SetTop(container, Y);
-            MainCanvas.Children.Add(container);
-            container.MouseDown += (sender, args) =>
-            {
-                args.Handled = true;
-                var bounceAnimation = new DoubleAnimation
-                {
-                    From = 1.0,
-                    To = 1.2,
-                    Duration = new Duration(TimeSpan.FromSeconds(0.25)),
-                    EasingFunction = new BackEase()
-                    {
-                        EasingMode = EasingMode.EaseIn,
-                    },
-                    AutoReverse = true
-                };
-                bounceAnimation.Completed += (o, eventArgs) =>
-                {
-                    Task.Run(async () =>
-                    {
-                        await Task.Delay(200);
-                        await Dispatcher.InvokeAsync(Reset);
-                    });
-                };
-                var scaleTransform = new ScaleTransform() { ScaleX = 1.0, ScaleY = 1.0 };
-                container.RenderTransform = scaleTransform;
-                container.RenderTransformOrigin = new Point(0.5, 0.5);
-                scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, bounceAnimation);
-                scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, bounceAnimation);
-            };
-            container.BeginAnimation(OpacityProperty, new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = new Duration(TimeSpan.FromSeconds(0.5)),
-                EasingFunction = new SineEase()
-                {
-                    EasingMode = EasingMode.EaseIn,
-                }
-            });
         }
 
         private void SetupSelectionGeometry()
@@ -323,6 +343,7 @@ namespace Kollector
 
         private void StartScreenClipping()
         {
+            Reset();
             BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
             _start = true;
             _reseted = false;
