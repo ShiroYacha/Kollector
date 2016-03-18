@@ -46,6 +46,7 @@ namespace Kollector
         private const double FONT_SIZE_BIGGER = 25;
         private const double ICON_SIZE_NORMAL = 25;
         private const double ICON_SIZE_BIGGER = 30;
+        private const double ICON_REMOVE_SIZE = 15;
         private const double OFFSET_VERTICAL = 60;
         private const double NOTEPAD_MIN_WIDTH = 800;
         private const bool DISMISS_ON_CLICK = false;
@@ -238,10 +239,19 @@ namespace Kollector
 
         private void SetupTagIcons(double x, double y)
         {
+            var listView = new ListView();
+            listView.Background = Brushes.Transparent;
+            listView.BorderBrush = Brushes.Transparent;
+            listView.BorderThickness = new Thickness(0);
+            Canvas.SetLeft(listView, x - 100);
+            Canvas.SetTop(listView, y);
+            MainCanvas.Children.Add(listView);
+
             var tagNames = new List<string> { "Momo", "Mobile app", "Payment", "Vietnam" };
             for (var i = 0; i < tagNames.Count; ++i)
             {
-                SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, x, y + OFFSET_VERTICAL * i);
+                var item = SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, 0, 0, true, listView);
+                item.Margin = new Thickness(5,10,5,10);
             }
         }
 
@@ -362,8 +372,8 @@ namespace Kollector
                 MainCanvas.BeginAnimation(OpacityProperty, disappearAnimation);
             };
             //cursor
-            container.MouseEnter += (sender, args) => { Mouse.OverrideCursor = Cursors.Hand; };
-            container.MouseLeave += (sender, args) => { Mouse.OverrideCursor = null; };
+            ChangeMouseCursorToSelect(container);
+
             // run animation
             container.BeginAnimation(OpacityProperty, new DoubleAnimation
             {
@@ -567,7 +577,7 @@ namespace Kollector
         }
         #endregion
 
-        private StackPanel SetupIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double x, double y)
+        private StackPanel SetupIcon(FontAwesomeIcon icon, string text, System.Windows.Media.Brush brush, double x, double y, bool canBeDeleted = false, ListView listViewContainer = null)
         {
             // container
             var container = new StackPanel { Orientation = Orientation.Horizontal };
@@ -588,11 +598,49 @@ namespace Kollector
             };
             container.Children.Add(textBlock);
 
+            // delete button (if needed)
+            if (canBeDeleted)
+            {
+                var deleteButton = new ImageAwesome
+                {
+                    Icon = FontAwesomeIcon.Remove,
+                    Foreground = Brushes.Red,
+                    Width = ICON_REMOVE_SIZE,
+                    Height = ICON_REMOVE_SIZE,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(5,0,0,0)
+                };
+                ChangeMouseCursorToSelect(deleteButton);
+                deleteButton.MouseUp += (sender, args) =>
+                {
+                    if (listViewContainer == null)
+                        MainCanvas.Children.Remove(container);
+                    else 
+                        listViewContainer.Items.Remove(container);
+                };
+                container.Children.Add(deleteButton);
+            }
+
             // setup
-            Canvas.SetLeft(container, x);
-            Canvas.SetTop(container, y);
-            MainCanvas.Children.Add(container);
+            if (listViewContainer == null)
+            {
+                Canvas.SetLeft(container, x);
+                Canvas.SetTop(container, y);
+                MainCanvas.Children.Add(container);
+            }
+            else
+            {
+                // put in listview
+                listViewContainer.Items.Add(container);
+            }
+           
             return container;
+        }
+
+        private static void ChangeMouseCursorToSelect(UIElement element)
+        {
+            element.MouseEnter += (sender, args) => { Mouse.OverrideCursor = Cursors.Hand; };
+            element.MouseLeave += (sender, args) => { Mouse.OverrideCursor = null; };
         }
 
 
