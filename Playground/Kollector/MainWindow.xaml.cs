@@ -36,14 +36,19 @@ namespace Kollector
     public partial class MainWindow : Window
     {
         private const double SELECTION_BACKGROUND_OPACITY = 0.7;
-        private const double POST_SELECTION_BACKGROUND_OPACITY = 0.8;
+        private const double POST_SELECTION_BACKGROUND_OPACITY = 0.85;
+        private const double FONT_SIZE_NORMAL = 20;
+        private const double FONT_SIZE_BIGGER= 25;
+        private const double ICON_SIZE_NORMAL = 30;
+        private const double ICON_SIZE_BIGGER = 35;
+
         private IKeyboardMouseEvents _globalHook;
 
         private Mode _mode = Mode.Rectangle;
-        private bool _drawing = false;
-        private bool _start = false;
-        private double _xRatio = 0.0;
-        private double _yRatio = 0.0;
+        private bool _drawing;
+        private bool _start;
+        private double _xRatio;
+        private double _yRatio;
         private Point _startPoint;
         private Path _selectionForegroundPath;
         private Path _selectionBackgroundPath;
@@ -54,6 +59,7 @@ namespace Kollector
 
         public MainWindow()
         {
+            _yRatio = 0.0;
             InitializeComponent();
         }
 
@@ -102,7 +108,9 @@ namespace Kollector
             var loadingNotebookIcon = new LoadingIndicator
             {
                 SpeedRatio =  1,
-                IsActive = true
+                IsActive = true,
+                Width = ICON_SIZE_BIGGER,
+                Height = ICON_SIZE_BIGGER
             };
             loadingNotebookIcon.SetResourceReference(StyleProperty, style);
             container.Children.Add(loadingNotebookIcon);
@@ -112,7 +120,7 @@ namespace Kollector
             {
                 Text = text,
                 FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
-                FontSize = 18,
+                FontSize = FONT_SIZE_BIGGER,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(10, 0, 0, 0)
             };
@@ -156,7 +164,7 @@ namespace Kollector
             var container = new StackPanel { Orientation = Orientation.Horizontal };
 
             // icon
-            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush, Width = 25, Height = 25, VerticalAlignment = VerticalAlignment.Center };
+            var iconBlock = new ImageAwesome { Icon = icon, Foreground = brush, Width = ICON_SIZE_NORMAL, Height = ICON_SIZE_NORMAL, VerticalAlignment = VerticalAlignment.Center };
             container.Children.Add(iconBlock);
 
             // text
@@ -165,7 +173,7 @@ namespace Kollector
                 Text = text,
                 Foreground = brush,
                 FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
-                FontSize = 18,
+                FontSize = FONT_SIZE_NORMAL,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(10, 0, 0, 0)
             };
