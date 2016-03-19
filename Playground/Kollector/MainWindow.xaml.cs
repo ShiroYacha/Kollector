@@ -161,13 +161,17 @@ namespace Kollector
                 // stop watch 
                 watch.Stop();
 
-                // log
-                _checker.Log(confidence, result, rectCrop, watch.ElapsedMilliseconds, scanTime);
-
-                // display
+                // log and display
                 var cleanText = string.Join(Environment.NewLine, result.Replace(Environment.NewLine, "").Replace("\t", "").Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries));
                 cleanText += Environment.NewLine;
-                Dispatcher.Invoke(() => PrintScanTextOnScreen(cleanText));
+                Dispatcher.Invoke(() =>
+                {
+                    // log
+                    _checker.Log(confidence, cleanText, rectCrop, watch.ElapsedMilliseconds, scanTime);
+                    
+                    // display 
+                    PrintScanTextOnScreen(cleanText);
+                });
             });
         }
 
@@ -509,6 +513,8 @@ namespace Kollector
                 MainCanvas.Opacity = 1;
                 MainCanvas.Background = Brushes.Transparent;
                 MainCanvas.RenderTransform = null;
+                Mouse.OverrideCursor = null;
+                OverlayMask.Opacity = 0;
                 _drawing = false;
                 _start = false;
                 _reseted = true;
