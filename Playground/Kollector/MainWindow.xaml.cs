@@ -1,30 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using FontAwesome.WPF;
 using Gma.System.MouseKeyHook;
 using LoadingIndicators.WPF;
 using Markdown.Xaml;
+using Tesseract;
+using Application = System.Windows.Application;
 using Binding = System.Windows.Data.Binding;
 using Brushes = System.Windows.Media.Brushes;
 using Cursors = System.Windows.Input.Cursors;
+using Image = System.Windows.Controls.Image;
+using ListView = System.Windows.Controls.ListView;
 using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 using Orientation = System.Windows.Controls.Orientation;
+using Path = System.Windows.Shapes.Path;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Point = System.Windows.Point;
-using Rectangle = System.Windows.Shapes.Rectangle;
+using Rect = System.Windows.Rect;
+using Size = System.Windows.Size;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace Kollector
@@ -59,6 +67,8 @@ namespace Kollector
         private Mode _mode = Mode.Rectangle;
         private bool _drawing;
         private bool _start;
+        private double _screenWidth;
+        private double _screenHeight;
         private double _xRatio;
         private double _yRatio;
         private Point _startPoint;
@@ -68,6 +78,7 @@ namespace Kollector
         private RectangleGeometry _rectSelectionForegroundGeometry;
         private CombinedGeometry _selectionBackgroundGeometry;
         private bool _reseted = true;
+        private Bitmap _fullScreenshotBitmap;
 
         public MainWindow()
         {
@@ -84,8 +95,13 @@ namespace Kollector
             _globalHook.KeyUp += _globalHook_KeyUp; ;
             _globalHook.MouseMove += _globalHook_MouseMove;
 
-            _xRatio = MainCanvas.ActualWidth / 3000;// SystemParameters.MaximizedPrimaryScreenWidth;
-            _yRatio = MainCanvas.ActualHeight / 2000;// SystemParameters.MaximizedPrimaryScreenHeight;
+            //screenWidth = SystemParameters.MaximizedPrimaryScreenWidth > 2000?3000:1920;
+            //screenHeight = Math.Abs(screenWidth - 3000) < 0.5?2000:1080;
+            _screenWidth = Screen.PrimaryScreen.Bounds.Width;
+            _screenHeight = Screen.PrimaryScreen.Bounds.Height;
+            
+            _xRatio = MainCanvas.ActualWidth/_screenWidth;
+            _yRatio = MainCanvas.ActualHeight/_screenHeight;
 
             SetupNotifyIcon();
         }
@@ -120,7 +136,78 @@ namespace Kollector
 
         private void Scan()
         {
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            var rectCrop = CropRectangle(_fullScreenshotBitmap, new Rectangle((int)bounds.X, (int)bounds.Y, (int)bounds.Width, (int)bounds.Height));
+            var converter = new BitmapToPixConverter();
+            var target = converter.Convert(rectCrop);
+            Task.Run(() =>
+            {
+                if (_reseted) return;
+                var result = Ocr(target);
+                if (_reseted) return;
+                var cleanText = result.Replace(Environment.NewLine, "");
+                Dispatcher.Invoke(() => PrintScanTextOnScreen(cleanText));
+            });
+        }
 
+        private void PrintScanTextOnScreen(string text)
+        {
+            var bounds = _selectionForegroundPath.Data.Bounds;
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = FONT_SIZE_NORMAL
+            };
+            textBlock.Measure(new Size(bounds.Width, double.PositiveInfinity));
+            Canvas.SetLeft(textBlock, bounds.TopLeft.X);
+            MainCanvas.Children.Add(textBlock);
+            UpdateLayout();
+            Canvas.SetTop(textBlock, bounds.TopLeft.Y - textBlock.ActualHeight);
+        }
+
+        private Bitmap CropRectangle(Bitmap source, Rectangle rect)
+        {
+            Bitmap target = new Bitmap(rect.Width, rect.Height);
+
+            using (Graphics g = Graphics.FromImage(target))
+            {
+                g.DrawImage(source, new Rectangle(0, 0, target.Width, target.Height), rect, GraphicsUnit.Pixel);
+            }
+            return target;
+        }
+
+        private string Ocr(Pix target)
+        {
+            var text = "";
+            try
+            {
+                var watch = new Stopwatch();
+                watch.Start();
+                using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
+                {
+
+                    using (var page = engine.Process(target))
+                    {
+                        text = page.GetText();
+                        Debug.WriteLine("Mean confidence: {0}", page.GetMeanConfidence());
+                        Debug.WriteLine(text);
+                    }
+                    target.Dispose();
+                }
+                watch.Stop();
+                text = text.Insert(0, $"[{watch.ElapsedMilliseconds}ms] ");
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError(e.ToString());
+                Debug.WriteLine("Unexpected Error: " + e.Message);
+                Debug.WriteLine("Details: ");
+                Debug.WriteLine(e.ToString());
+            }
+            return text;
         }
 
         #endregion
@@ -136,10 +223,10 @@ namespace Kollector
             var top = bounds.Bottom + 40;
 
             // create grid
-            var grid = new Grid {Width = width, Height = 300};
-            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(1, GridUnitType.Star)});
-            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(20)});
-            grid.ColumnDefinitions.Add(new ColumnDefinition {Width = new GridLength(1, GridUnitType.Star)});
+            var grid = new Grid { Width = width, Height = 300 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // create text editor
             var editor = new TextBox
@@ -165,7 +252,7 @@ namespace Kollector
             {
                 Source = editor,
                 Path = new PropertyPath("Text"),
-                Converter = (TextToFlowDocumentConverter) FindResource("TextToFlowDocumentConverter")
+                Converter = (TextToFlowDocumentConverter)FindResource("TextToFlowDocumentConverter")
             };
             viewer.SetBinding(FlowDocumentScrollViewer.DocumentProperty, binding);
             Grid.SetColumn(viewer, 2);
@@ -252,7 +339,7 @@ namespace Kollector
             for (var i = 0; i < tagNames.Count; ++i)
             {
                 var item = SetupIcon(FontAwesomeIcon.Bookmark, tagNames[i], Brushes.White, 0, 0, true, listView);
-                item.Margin = new Thickness(5,10,5,10);
+                item.Margin = new Thickness(5, 10, 5, 10);
             }
         }
 
@@ -399,6 +486,7 @@ namespace Kollector
                 BackgroundBrush.Opacity = 0;
                 MainCanvas.Children.Clear();
                 MainCanvas.Opacity = 1;
+                MainCanvas.Background = Brushes.Transparent;
                 MainCanvas.RenderTransform = null;
                 _drawing = false;
                 _start = false;
@@ -448,11 +536,17 @@ namespace Kollector
         private void StartScreenClipping()
         {
             Reset();
-            BackgroundBrush.Opacity = SELECTION_BACKGROUND_OPACITY;
+
+            FillWithScreenshot();
+            OverlayMask.Opacity = SELECTION_BACKGROUND_OPACITY;
+
             Mouse.OverrideCursor = Cursors.Cross;
+
             _start = true;
             _reseted = false;
+
         }
+
 
 
         private void _globalHook_KeyUp(object sender, System.Windows.Forms.KeyEventArgs e)
@@ -534,7 +628,8 @@ namespace Kollector
         {
             if (_start)
             {
-                BackgroundBrush.Opacity = 0;
+                //BackgroundBrush.Opacity = 0;
+                OverlayMask.Opacity = 0;
 
                 var point = new Point(e.X * _xRatio, e.Y * _yRatio);
                 _startPoint = point;
@@ -553,22 +648,22 @@ namespace Kollector
 
         private void FillWithScreenshot()
         {
-            Bitmap screenshotBmp = new Bitmap((int)SystemParameters.VirtualScreenWidth, (int)SystemParameters.VirtualScreenHeight, PixelFormat.Format32bppArgb);
+            _fullScreenshotBitmap = new Bitmap((int)_screenWidth, (int)_screenHeight, PixelFormat.Format24bppRgb);
 
-            using (var g = Graphics.FromImage(screenshotBmp))
+            using (var g = Graphics.FromImage(_fullScreenshotBitmap))
             {
-                g.CopyFromScreen(0, 0, 0, 0, screenshotBmp.Size);
+                g.CopyFromScreen(Screen.PrimaryScreen.Bounds.X, Screen.PrimaryScreen.Bounds.Y, 0, 0, _fullScreenshotBitmap.Size, CopyPixelOperation.SourceCopy);
             }
 
             IntPtr handle = IntPtr.Zero;
             try
             {
-                handle = screenshotBmp.GetHbitmap();
-
-                var imageBrush = new ImageBrush();
-                imageBrush.ImageSource = Imaging.CreateBitmapSourceFromHBitmap(handle, IntPtr.Zero, Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-                imageBrush.Stretch = Stretch.UniformToFill;
+                handle = _fullScreenshotBitmap.GetHbitmap();
+                var imageBrush = new ImageBrush
+                {
+                    ImageSource = Imaging.CreateBitmapSourceFromHBitmap(handle, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()),
+                    Stretch = Stretch.None
+                };
                 MainCanvas.Background = imageBrush;
             }
             finally
@@ -609,14 +704,14 @@ namespace Kollector
                     Width = ICON_REMOVE_SIZE,
                     Height = ICON_REMOVE_SIZE,
                     VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(5,0,0,0)
+                    Margin = new Thickness(5, 0, 0, 0)
                 };
                 ChangeMouseCursorToSelect(deleteButton);
                 deleteButton.MouseUp += (sender, args) =>
                 {
                     if (listViewContainer == null)
                         MainCanvas.Children.Remove(container);
-                    else 
+                    else
                         listViewContainer.Items.Remove(container);
                 };
                 container.Children.Add(deleteButton);
@@ -634,7 +729,7 @@ namespace Kollector
                 // put in listview
                 listViewContainer.Items.Add(container);
             }
-           
+
             return container;
         }
 
