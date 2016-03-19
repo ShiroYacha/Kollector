@@ -4,8 +4,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -56,7 +58,7 @@ namespace Kollector
         private const double ICON_SIZE_BIGGER = 30;
         private const double ICON_REMOVE_SIZE = 15;
         private const double OFFSET_VERTICAL = 60;
-        private const double NOTEPAD_MIN_WIDTH = 800;
+        private const double NOTEPAD_MIN_WIDTH = 500;
         private const bool DISMISS_ON_CLICK = false;
         private const int NOTEBOOK_SEARCH_TIME_MS = 2000;
         private const int TAG_EXTRACT_TIME_MS = 1800;
@@ -79,6 +81,7 @@ namespace Kollector
         private CombinedGeometry _selectionBackgroundGeometry;
         private bool _reseted = true;
         private Bitmap _fullScreenshotBitmap;
+        private StatisticChecker _checker = new StatisticChecker("naive");
 
         public MainWindow()
         {
@@ -136,19 +139,40 @@ namespace Kollector
 
         private void Scan()
         {
+            var scanTime = DateTime.Now;
             var bounds = _selectionForegroundPath.Data.Bounds;
-            var rectCrop = CropRectangle(_fullScreenshotBitmap, new Rectangle((int)bounds.X, (int)bounds.Y, (int)bounds.Width, (int)bounds.Height));
+            var targetBounds = new Rectangle((int) bounds.X, (int) bounds.Y, (int) bounds.Width, (int) bounds.Height);
+            var rectCrop = CropRectangle(_fullScreenshotBitmap, targetBounds);
             var converter = new BitmapToPixConverter();
             var target = converter.Convert(rectCrop);
             Task.Run(() =>
             {
                 if (_reseted) return;
-                var result = Ocr(target);
+
+                // start watch
+                var watch = new Stopwatch();
+                watch.Start();
+
+                // OCR
+                double confidence;
+                var result = Ocr(target, out confidence);
                 if (_reseted) return;
-                var cleanText = result.Replace(Environment.NewLine, "");
+
+                // stop watch 
+                watch.Stop();
+
+                // log
+                _checker.Log(confidence, result, rectCrop, watch.ElapsedMilliseconds, scanTime);
+
+                // display
+                var cleanText = string.Join(Environment.NewLine, result.Replace(Environment.NewLine, "").Replace("\t", "").Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries));
+                cleanText += Environment.NewLine;
                 Dispatcher.Invoke(() => PrintScanTextOnScreen(cleanText));
             });
         }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
 
         private void PrintScanTextOnScreen(string text)
         {
@@ -179,26 +203,22 @@ namespace Kollector
             return target;
         }
 
-        private string Ocr(Pix target)
+        private string Ocr(Pix target, out double confidence)
         {
-            var text = "";
             try
             {
-                var watch = new Stopwatch();
-                watch.Start();
+                var text = "";
                 using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
                 {
 
                     using (var page = engine.Process(target))
                     {
                         text = page.GetText();
-                        Debug.WriteLine("Mean confidence: {0}", page.GetMeanConfidence());
-                        Debug.WriteLine(text);
+                        confidence = page.GetMeanConfidence();
                     }
                     target.Dispose();
                 }
-                watch.Stop();
-                text = text.Insert(0, $"[{watch.ElapsedMilliseconds}ms] ");
+                return text;
             }
             catch (Exception e)
             {
@@ -207,7 +227,8 @@ namespace Kollector
                 Debug.WriteLine("Details: ");
                 Debug.WriteLine(e.ToString());
             }
-            return text;
+            confidence = 0;
+            return "";
         }
 
         #endregion

@@ -69,5 +69,6 @@
                 <x:Null/>
             </Canvas.Background>
         </Canvas>
+        <Grid Name="OverlayMask" Background="White" Opacity="0" IsHitTestVisible="False"/>
     </Grid>
 </Window>
