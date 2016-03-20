@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -141,10 +142,30 @@ namespace Kollector
         {
             var scanTime = DateTime.Now;
             var bounds = _selectionForegroundPath.Data.Bounds;
-            var targetBounds = new Rectangle((int) bounds.X, (int) bounds.Y, (int) bounds.Width, (int) bounds.Height);
-            var rectCrop = CropRectangle(_fullScreenshotBitmap, targetBounds);
+            var targetBounds = new Rectangle((int)bounds.X, (int)bounds.Y, (int)bounds.Width, (int)bounds.Height);
+            GraphicsPath graphicsPath;
+            if (_lassoSelectionForegroundGeometry != null)
+            {
+                graphicsPath = new GraphicsPath();
+                graphicsPath.AddLines(
+                    _lassoSelectionForegroundGeometry.Segments.Cast<LineSegment>()
+                        .Select(s => new PointF((float)(s.Point.X - bounds.X), (float)(s.Point.Y - bounds.Y)))
+                        .Where(p => p.X > 0 && p.Y > 0 && p.X < bounds.Width && p.Y < bounds.Height)
+                        .ToArray());
+            }
+            else
+            {
+                graphicsPath = new GraphicsPath();
+                graphicsPath.AddRectangle(new RectangleF(0, 0, (float)bounds.Width, (float)bounds.Height));
+            }
+            var croppedScreenshot = CropBitmap(_fullScreenshotBitmap, targetBounds, graphicsPath);
+
+            // test show cropped bitmap
+            //ShowCroppedScreenshot(croppedScreenshot);
+
+            // OCR
             var converter = new BitmapToPixConverter();
-            var target = converter.Convert(rectCrop);
+            var target = converter.Convert(croppedScreenshot);
             Task.Run(() =>
             {
                 if (_reseted) return;
@@ -167,12 +188,29 @@ namespace Kollector
                 Dispatcher.Invoke(() =>
                 {
                     // log
-                    _checker.Log(confidence, cleanText, rectCrop, watch.ElapsedMilliseconds, scanTime);
-                    
+                    _checker.Log(confidence, cleanText, croppedScreenshot, watch.ElapsedMilliseconds, scanTime);
+
                     // display 
                     PrintScanTextOnScreen(cleanText);
                 });
             });
+        }
+
+        private void ShowCroppedScreenshot(Bitmap croppedScreenshot)
+        {
+            var handle = croppedScreenshot.GetHbitmap();
+            var imageBrush = new ImageBrush
+            {
+                ImageSource = Imaging.CreateBitmapSourceFromHBitmap(handle, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()),
+                Stretch = Stretch.None
+            };
+            Grid test = new Grid();
+            test.Background = imageBrush;
+            test.Width = croppedScreenshot.Width;
+            test.Height = croppedScreenshot.Height;
+            Canvas.SetTop(test, 0);
+            Canvas.SetLeft(test, 0);
+            MainCanvas.Children.Add(test);
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -196,13 +234,15 @@ namespace Kollector
             Canvas.SetTop(textBlock, bounds.TopLeft.Y - textBlock.ActualHeight);
         }
 
-        private Bitmap CropRectangle(Bitmap source, Rectangle rect)
+        private Bitmap CropBitmap(Bitmap source, Rectangle bounds, GraphicsPath graphicsPath)
         {
-            Bitmap target = new Bitmap(rect.Width, rect.Height);
+            Bitmap target = new Bitmap(bounds.Width, bounds.Height);
 
             using (Graphics g = Graphics.FromImage(target))
             {
-                g.DrawImage(source, new Rectangle(0, 0, target.Width, target.Height), rect, GraphicsUnit.Pixel);
+                g.FillRectangle(System.Drawing.Brushes.White, 0, 0, source.Width, source.Height);
+                g.Clip = new Region(graphicsPath);
+                g.DrawImage(source, new Rectangle(0, 0, target.Width, target.Height), bounds, GraphicsUnit.Pixel);
             }
             return target;
         }
@@ -513,6 +553,10 @@ namespace Kollector
                 MainCanvas.Opacity = 1;
                 MainCanvas.Background = Brushes.Transparent;
                 MainCanvas.RenderTransform = null;
+                _lassoSelectionForegroundGeometry = null;
+                _rectSelectionForegroundGeometry = null;
+                _selectionForegroundPath = null;
+                _selectionBackgroundPath = null;
                 Mouse.OverrideCursor = null;
                 OverlayMask.Opacity = 0;
                 _drawing = false;
@@ -695,7 +739,7 @@ namespace Kollector
             }
             finally
             {
-                //DeleteObject(handle);
+                DeleteObject(handle);
             }
         }
         #endregion
